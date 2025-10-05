@@ -1,227 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TasteBite Restaurant</title>
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: 'Poppins', sans-serif; margin: 0; background: #f5f5f5; color: #333; overflow-x: hidden; }
-  header { background: #ff6347; color: white; display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; position: sticky; top: 0; z-index: 10; }
-  header h1 { font-size: 24px; margin: 0; }
-  header button { background: white; color: #ff6347; border: none; padding: 8px 14px; border-radius: 5px; cursor: pointer; font-weight: 600; }
-  header button:hover { background: #ffe4e1; }
-
-  .container { padding: 20px; max-width: 900px; margin: auto; }
-
-  .menu-item { background: white; display: flex; align-items: center; padding: 12px 15px; border-radius: 10px; margin: 10px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-  .menu-item img { width: 70px; height: 70px; border-radius: 10px; object-fit: cover; margin-right: 15px; }
-  .menu-item span { font-size: 18px; font-weight: 500; }
-  button { cursor: pointer; }
-
-  #cart { margin-top: 25px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-  #cart h3 { margin-top: 0; }
-  #qrCode { text-align: center; margin-top: 25px; }
-
-  /* Sidebar (Admin Panel) */
-  #adminSidebar {
-    position: fixed; top: 0; right: -400px; height: 100%; width: 300px;
-    background: white; box-shadow: -2px 0 8px rgba(0,0,0,0.2);
-    transition: right 0.4s ease; padding: 20px; z-index: 999;
-  }
-  #adminSidebar.active { right: 0; }
-  #adminSidebar h2 { color: #ff6347; }
-  #adminSidebar input { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 5px; }
-  #adminSidebar button { margin-top: 5px; background: #ff6347; color: white; border: none; padding: 8px 10px; border-radius: 5px; width: 100%; }
-  #adminSidebar .closeBtn { background: #ccc; color: black; }
-
-  /* Responsive */
-  @media (max-width: 600px) {
-    header h1 { font-size: 20px; }
-    .menu-item span { font-size: 16px; }
-    #adminSidebar { width: 80%; }
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TasteBite Restaurant</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
 </head>
-<body>
+<body class="bg-gray-100">
+  <header class="bg-red-600 text-white text-center p-4 text-2xl font-bold">🍽️ TasteBite Restaurant</header>
 
-<header>
-  <h1>🍴 TasteBite Restaurant</h1>
-  <button onclick="toggleSidebar()">Admin Panel</button>
-</header>
+  <!-- Menu Section -->
+  <main id="menu" class="p-4 grid sm:grid-cols-2 md:grid-cols-3 gap-4"></main>
 
-<div class="container">
-  <h2>Our Menu</h2>
-  <div id="menuDisplay"></div>
-
-  <div id="cart">
-    <h3>Your Order</h3>
-    <input id="custName" placeholder="Your Name" style="width:48%;padding:8px;margin-right:2%;">
-    <input id="tableNo" placeholder="Table No" style="width:48%;padding:8px;">
-    <div id="cartItems"></div>
-    <p><strong>Total: ₹<span id="total">0</span></strong></p>
-    <button onclick="orderWhatsApp()">Order via WhatsApp</button>
+  <!-- Order Summary -->
+  <div id="cart" class="fixed bottom-0 left-0 w-full bg-white border-t p-3 flex justify-between items-center">
+    <span id="cart-count">0 items</span>
+    <button id="order-btn" class="bg-red-500 text-white px-4 py-2 rounded">Order Now</button>
   </div>
 
-  <div id="qrCode">
-    <h3>📱 Scan to View Menu</h3>
-    <canvas id="qrCanvas"></canvas>
+  <!-- Admin Panel Button -->
+  <button onclick="toggleAdmin()" class="fixed top-4 right-4 bg-black text-white p-2 rounded">Admin</button>
+
+  <!-- Admin Panel -->
+  <div id="admin-panel" class="hidden fixed top-0 right-0 bg-white h-full w-80 shadow-lg p-4 overflow-y-auto">
+    <h2 class="text-xl font-bold mb-2">Admin Panel</h2>
+    <input id="email" type="email" placeholder="Email" class="border p-2 w-full mb-2">
+    <input id="password" type="password" placeholder="Password" class="border p-2 w-full mb-2">
+    <button onclick="login()" class="bg-red-500 text-white p-2 w-full mb-3">Login</button>
+
+    <div id="admin-content" class="hidden">
+      <h3 class="font-bold mb-2">Add Menu Item</h3>
+      <input id="itemName" placeholder="Item Name" class="border p-2 w-full mb-2">
+      <input id="itemPrice" placeholder="Price" type="number" class="border p-2 w-full mb-2">
+      <input id="itemImage" placeholder="Image URL" class="border p-2 w-full mb-2">
+      <button onclick="addItem()" class="bg-green-500 text-white p-2 w-full mb-4">Add Item</button>
+
+      <h3 class="font-bold">Menu Items</h3>
+      <ul id="admin-items" class="mt-2"></ul>
+    </div>
   </div>
-</div>
 
-<!-- Slide-in Admin Sidebar -->
-<div id="adminSidebar">
-  <h2>Admin Panel</h2>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+    import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js";
 
-  <div id="loginPanel">
-    <input type="text" id="username" placeholder="Username">
-    <input type="password" id="password" placeholder="Password">
-    <button onclick="adminLogin()">Login</button>
-    <p id="loginMsg" style="color:red;"></p>
-  </div>
-
-  <div id="adminPanel" style="display:none;">
-    <input type="text" id="itemName" placeholder="Item Name">
-    <input type="number" id="itemPrice" placeholder="Price">
-    <input type="file" id="itemPhoto" accept="image/*">
-    <button onclick="addItem()">Add Item</button>
-    <h3>Menu List</h3>
-    <div id="menuList"></div>
-    <button class="closeBtn" onclick="toggleSidebar()">Close</button>
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-<script>
-// ---------- Data ----------
-let DATA = JSON.parse(localStorage.getItem('restaurantData')) || {
-  users: [{ username: 'admin', salt: '', hash: '' }],
-  menu: []
-};
-let cart = [];
-
-// ---------- Hash ----------
-async function hashPassword(pass, salt) {
-  const data = new TextEncoder().encode(pass + salt);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-function randomSalt(len=8) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from({length: len}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
-}
-async function initAdmin() {
-  if (!DATA.users[0].salt) {
-    DATA.users[0].salt = randomSalt();
-    DATA.users[0].hash = await hashPassword("TasteBite@2025", DATA.users[0].salt);
-    localStorage.setItem('restaurantData', JSON.stringify(DATA));
-  }
-}
-initAdmin();
-
-// ---------- Admin ----------
-function toggleSidebar() {
-  document.getElementById('adminSidebar').classList.toggle('active');
-}
-
-async function adminLogin() {
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
-  if (username !== 'admin') return document.getElementById('loginMsg').innerText = "Invalid username";
-  const hash = await hashPassword(password, DATA.users[0].salt);
-  if (hash === DATA.users[0].hash) {
-    document.getElementById('loginPanel').style.display = 'none';
-    document.getElementById('adminPanel').style.display = 'block';
-    renderMenuAdmin();
-  } else document.getElementById('loginMsg').innerText = "Wrong password!";
-}
-
-// ---------- Menu ----------
-function addItem() {
-  const name = document.getElementById('itemName').value.trim();
-  const price = parseFloat(document.getElementById('itemPrice').value);
-  const file = document.getElementById('itemPhoto').files[0];
-  if (!name || !price) return alert("Please enter name & price");
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      DATA.menu.push({ name, price, photo: e.target.result });
-      saveAndRender();
+    // 🔥 Replace this with your Firebase config
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      databaseURL: "YOUR_DB_URL",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MSG_ID",
+      appId: "YOUR_APP_ID"
     };
-    reader.readAsDataURL(file);
-  } else {
-    DATA.menu.push({ name, price, photo: '' });
-    saveAndRender();
-  }
-  document.getElementById('itemName').value = '';
-  document.getElementById('itemPrice').value = '';
-  document.getElementById('itemPhoto').value = '';
-}
-function deleteItem(i) {
-  DATA.menu.splice(i, 1);
-  saveAndRender();
-}
-function saveAndRender() {
-  localStorage.setItem('restaurantData', JSON.stringify(DATA));
-  renderMenu();
-  renderMenuAdmin();
-}
-function renderMenuAdmin() {
-  const list = document.getElementById('menuList');
-  list.innerHTML = '';
-  DATA.menu.forEach((item, i) => {
-    list.innerHTML += `<div>${item.name} - ₹${item.price} <button onclick="deleteItem(${i})">Delete</button></div>`;
-  });
-}
-function renderMenu() {
-  const display = document.getElementById('menuDisplay');
-  display.innerHTML = '';
-  DATA.menu.forEach((item, i) => {
-    display.innerHTML += `
-      <div class="menu-item">
-        <img src="${item.photo || 'https://via.placeholder.com/70'}" alt="">
-        <div style="flex:1">
-          <span>${item.name}</span><br>
-          <small>₹${item.price}</small>
-        </div>
-        <button onclick="addToCart(${i})">Add</button>
-      </div>`;
-  });
-}
-renderMenu();
 
-// ---------- Cart ----------
-function addToCart(i) { cart.push(DATA.menu[i]); renderCart(); }
-function removeCart(i) { cart.splice(i, 1); renderCart(); }
-function renderCart() {
-  const cartDiv = document.getElementById('cartItems');
-  cartDiv.innerHTML = '';
-  let total = 0;
-  cart.forEach((item, i) => {
-    total += item.price;
-    cartDiv.innerHTML += `<div>${item.name} - ₹${item.price} <button onclick="removeCart(${i})">❌</button></div>`;
-  });
-  document.getElementById('total').innerText = total.toFixed(2);
-}
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth();
 
-// ---------- WhatsApp ----------
-function orderWhatsApp() {
-  if (!cart.length) return alert("Cart is empty!");
-  const name = document.getElementById('custName').value || 'Guest';
-  const table = document.getElementById('tableNo').value || 'N/A';
-  let msg = `Hello TasteBite!\nName: ${name}\nTable: ${table}\n\nOrder Details:\n`;
-  cart.forEach(item => msg += `${item.name} - ₹${item.price}\n`);
-  const total = cart.reduce((sum, i) => sum + i.price, 0);
-  msg += `\nTotal: ₹${total.toFixed(2)}`;
-  const phone = "919906181833";
-  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
-}
+    const menuContainer = document.getElementById('menu');
+    const adminList = document.getElementById('admin-items');
+    let cart = [];
 
-// ---------- QR Code ----------
-QRCode.toCanvas(document.getElementById('qrCanvas'), window.location.href + '?menu=true', err => {
-  if (err) console.error(err);
-});
-</script>
+    // Load Menu
+    onValue(ref(db, 'menu/'), (snapshot) => {
+      menuContainer.innerHTML = '';
+      snapshot.forEach(item => {
+        const data = item.val();
+        menuContainer.innerHTML += `
+          <div class="bg-white p-3 rounded shadow">
+            <img src="${data.image}" class="h-40 w-full object-cover rounded mb-2">
+            <h3 class="font-bold">${data.name}</h3>
+            <p>₹${data.price}</p>
+            <button onclick="addToCart('${data.name}', ${data.price})" class="bg-red-500 text-white px-3 py-1 rounded mt-2">Add</button>
+          </div>`;
+      });
+    });
+
+    // Add to Cart
+    window.addToCart = function(name, price) {
+      cart.push({ name, price });
+      document.getElementById('cart-count').textContent = `${cart.length} items`;
+    }
+
+    document.getElementById('order-btn').onclick = () => {
+      alert('Your order has been placed successfully!');
+      cart = [];
+      document.getElementById('cart-count').textContent = '0 items';
+    }
+
+    // Admin Panel Toggle
+    window.toggleAdmin = function() {
+      document.getElementById('admin-panel').classList.toggle('hidden');
+    }
+
+    // Admin Login
+    window.login = function() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      signInWithEmailAndPassword(auth, email, password)
+        .then(() => {
+          document.getElementById('admin-content').classList.remove('hidden');
+        })
+        .catch(err => alert(err.message));
+    }
+
+    // Add Menu Item
+    window.addItem = function() {
+      const name = document.getElementById('itemName').value;
+      const price = document.getElementById('itemPrice').value;
+      const image = document.getElementById('itemImage').value;
+      push(ref(db, 'menu/'), { name, price, image });
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemPrice').value = '';
+      document.getElementById('itemImage').value = '';
+    }
+  </script>
 </body>
 </html>
